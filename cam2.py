@@ -12,7 +12,7 @@ Gst.init(None)
 def get_next_available_filename(base_path, base_filename):
     index = 0
     while True:
-        # Create a candidate filename with the index (e.g., Stream_0_eMMC_1.h264)
+        # Create a candidate filename with the index (e.g., Stream_1_eMMC_1.h264)
         candidate_filename = f"{base_path}/{base_filename}_{index}.h264" if index > 0 else f"{base_path}/{base_filename}.h264"
         if not os.path.exists(candidate_filename) or os.path.getsize(candidate_filename) == 0:  # Check if the file exists
             return candidate_filename
@@ -49,7 +49,7 @@ queue max-size-buffers=2 leaky=downstream !
 x264enc tune=zerolatency bitrate=200 speed-preset=superfast key-int-max=4 intra-refresh=true bframes=0 aud=true option-string="slice-max-size=200" !
 video/x-h264,stream-format=byte-stream,alignment=au !
 h264parse config-interval=1 !
-rtph264pay pt=96 mtu=255 config-interval=1 !
+rtph264pay pt=96 mtu=253 config-interval=1 !
 udpsink host=127.0.0.1 port=6001 sync=false async=false
 """)
 

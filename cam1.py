@@ -49,7 +49,7 @@ queue max-size-buffers=2 leaky=downstream !
 x264enc tune=zerolatency bitrate=200 speed-preset=superfast key-int-max=4 intra-refresh=true bframes=0 aud=true option-string="slice-max-size=200" !
 video/x-h264,stream-format=byte-stream,alignment=au !
 h264parse config-interval=1 !
-rtph264pay pt=96 mtu=255 config-interval=1 !
+rtph264pay pt=96 mtu=253 config-interval=1 !
 udpsink host=127.0.0.1 port=6000 sync=false async=false
 """)
 
