@@ -6,65 +6,69 @@ import sys
 import os
 import time
 
-# SPI setup
-SPI_BUS = 0
-SPI_DEVICE = 0
-SPI_SPEED = 1000000
+if len(sys.argv) < 5:
+    print("Usage: spi_mux.py <spi_bus> <spi_device> <spi_speed> <udp_ports_comma_separated>")
+    sys.exit(1)
 
+SPI_BUS = int(sys.argv[1])
+SPI_DEVICE = int(sys.argv[2])
+SPI_SPEED = int(sys.argv[3])
+UDP_PORTS = [int(p) for p in sys.argv[4].split(",")]
+
+# SPI setup
 spi = spidev.SpiDev()
 spi.open(SPI_BUS, SPI_DEVICE)
 spi.max_speed_hz = SPI_SPEED
 spi.mode = 0
 
-sock1 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock1.bind(("127.0.0.1", 6000))
+# Create UDP sockets dynamically
+sockets = []
+for port in UDP_PORTS:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", port))
+    sockets.append(sock)
 
-sock2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock2.bind(("127.0.0.1", 6001))
-
-# Graceful shutdown
-def shutdown_spi_mux(sig, frame):
-    print("Shutting down SPI mux gracefully...")
-    spi.close()  # Close the SPI connection
-    sys.exit(0)  # Exit the process
-
-# Register SIGINT handler (CTRL + C)
-signal.signal(signal.SIGINT, shutdown_spi_mux)
-
-# SPI Mux main loop
 print("SPI MUX running")
 
-# Check if logging is enabled by reading the environment variable
 logging_enabled = os.getenv("LOGGING_ENABLED", "false").lower() == "true"
 
-# RTP tracking per stream
-last_seq = {1: None, 2: None}
-dropped_packets = {1: 0, 2: 0}
-received_packets = {1: 0, 2: 0}
+last_seq = {}
+dropped_packets = {}
+received_packets = {}
+
+for i in range(len(sockets)):
+    stream_id = i + 1
+    last_seq[stream_id] = None
+    dropped_packets[stream_id] = 0
+    received_packets[stream_id] = 0
+
 last_report_time = time.time()
 
+
+def shutdown_spi_mux(sig, frame):
+    print("Shutting down SPI mux gracefully...")
+    spi.close()
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, shutdown_spi_mux)
+
 while True:
-    readable, _, _ = select.select([sock1, sock2], [], [])
+    readable, _, _ = select.select(sockets, [], [])
 
     for s in readable:
         data, _ = s.recvfrom(255)
 
         if len(data) < 4:
-            continue  # Not a valid RTP packet
+            continue
 
-        # RTP sequence number is bytes 2-3
+        stream_id = sockets.index(s) + 1
         seq = (data[2] << 8) | data[3]
 
-        if s == sock1:
-            stream_id = 1
-        else:
-            stream_id = 2
-
-        # Update packet counts and check for drops
         received_packets[stream_id] += 1
 
         if last_seq[stream_id] is not None:
-            expected = (last_seq[stream_id] + 1) & 0xFFFF  # wrap at 16-bit
+            expected = (last_seq[stream_id] + 1) & 0xFFFF
             if seq != expected:
                 diff = (seq - expected) & 0xFFFF
                 if diff > 0:
@@ -74,29 +78,20 @@ while True:
 
         last_seq[stream_id] = seq
 
-        length = len(data)+2
-        
-        # Build packet: [length_hi][length_lo][stream_id][data...]
-        packet = bytes([length,stream_id]) + data
-        
-        
-        # Print source ID and packet length
-        if logging_enabled:
-            print(f"Source ID: {stream_id}, Packet Length: {length} bytes")
-            hex_string = " ".join(f"{b:02X}" for b in packet)
-            print(f"SPI Packet (hex): {hex_string}")
-            print("-" * 60)
-            
-        spi.xfer2(packet)
-        time.sleep(0.001)  # Small delay to prevent overwhelming the SPI bus
+        length = len(data) + 2
+        packet = bytes([length, stream_id]) + data
 
-        # Periodically report packet loss statistics
-        now = time.time()
-        if now - last_report_time >= 1:
-            print("---- RTP UDP Stats ----")
-            for sid in (1, 2):
-                print(f"Stream {sid}: received={received_packets[sid]}, dropped={dropped_packets[sid]}")
-                received_packets[sid] = 0
-                dropped_packets[sid] = 0
-            print("-----------------------")
-            last_report_time = now
+        if logging_enabled:
+            print(f"Source ID: {stream_id}, Packet Length: {length}")
+
+        spi.xfer2(packet)
+
+    now = time.time()
+    if now - last_report_time >= 1:
+        print("---- RTP UDP Stats ----")
+        for sid in received_packets:
+            print(f"Stream {sid}: received={received_packets[sid]}, dropped={dropped_packets[sid]}")
+            received_packets[sid] = 0
+            dropped_packets[sid] = 0
+        print("-----------------------")
+        last_report_time = now

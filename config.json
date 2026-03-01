@@ -1,0 +1,27 @@
+{
+    "features": {
+        "logging": true
+    },
+    "cameras": [
+        {
+            "enabled": true,
+            "name": "cam1",
+            "camera_path": "/base/soc/i2c0mux/i2c@1/ov5647@36",
+            "stream_index": 0,
+            "udp_port": 6000
+        },
+        {
+            "enabled": true,
+            "name": "cam2",
+            "camera_path": "/base/soc/i2c0mux/i2c@1/ov5647@36",
+            "stream_index": 1,
+            "udp_port": 6001
+        }
+    ],
+    "spi": {
+        "enabled": true,
+        "bus": 0,
+        "device": 0,
+        "speed": 1000000
+    }
+}
