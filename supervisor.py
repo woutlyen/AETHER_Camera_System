@@ -49,7 +49,7 @@ while True:
 
     # SPI
     if config["spi"]["enabled"]:
-        udp_ports = ",".join(str(cam["udp_port"]) for cam in config["cameras"] if cam["enabled"])
+        udp_ports = ",".join(str(cam["udp_port"]) for cam in config["cameras"]) # if cam["enabled"])
 
         desired_processes["spi"] = [
             "/usr/bin/python3",

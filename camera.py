@@ -59,13 +59,12 @@ video/x-raw,width=640,height=360 !
 videorate !
 video/x-raw,framerate=8/1 !
 queue max-size-buffers=2 leaky=downstream !
-x264enc tune=zerolatency bitrate=200 speed-preset=superfast key-int-max=4 intra-refresh=true bframes=0 aud=true option-string="slice-max-size=200" !
+x264enc tune=zerolatency bitrate=200 speed-preset=superfast key-int-max=8 intra-refresh=true bframes=0 aud=true option-string="slice-max-size=236" !
 video/x-h264,stream-format=byte-stream,alignment=au !
 h264parse config-interval=1 !
-rtph264pay pt=96 mtu=253 config-interval=1 !
+rtph264pay pt=96 mtu=242 config-interval=1 !
 udpsink host=127.0.0.1 port={udp_port} sync=false async=false
 """)
-
 
 def shutdown_pipeline(sig, frame):
     print(f"Shutting down {label} pipeline gracefully...")
