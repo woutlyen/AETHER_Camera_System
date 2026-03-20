@@ -34,6 +34,12 @@ while True:
 
     desired_processes = {}
 
+    # CAN
+    desired_processes["can_listener"] = [
+        "/usr/bin/python3",
+        "/home/pi/Camera/can_listener.py"
+    ]
+
     # Cameras
     for cam in config["cameras"]:
         if cam["enabled"]:
@@ -73,4 +79,4 @@ while True:
             running[name].wait()
             del running[name]
 
-    time.sleep(2)
+    time.sleep(1)
