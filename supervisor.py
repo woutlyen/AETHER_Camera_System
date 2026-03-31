@@ -7,7 +7,7 @@ import os
 
 running = {}
 
-def load_config(filename="/home/pi/Camera/config.json"):
+def load_config(filename="/home/rpi/Camera/config.json"):
     with open(filename, "r") as f:
         return json.load(f)
 
@@ -35,10 +35,10 @@ while True:
     desired_processes = {}
 
     # CAN
-    desired_processes["can_listener"] = [
-        "/usr/bin/python3",
-        "/home/pi/Camera/can_listener.py"
-    ]
+    # desired_processes["can_listener"] = [
+    #     "/usr/bin/python3",
+    #     "/home/pi/Camera/can_listener.py"
+    # ]
 
     # Cameras
     for cam in config["cameras"]:
@@ -46,10 +46,23 @@ while True:
             name = cam["name"]
             desired_processes[name] = [
                 "/usr/bin/python3",
-                "/home/pi/Camera/camera.py",
+                "/home/rpi/Camera/camera.py",
                 cam["camera_path"],
                 str(cam["stream_index"]),
                 str(cam["udp_port"]),
+                name
+            ]
+
+    # udp_mjpeg
+    for udp_mjpeg in config["udp_mjpegs"]:
+        if udp_mjpeg["enabled"]:
+            name = udp_mjpeg["name"]
+            desired_processes[name] = [
+                "/usr/bin/python3",
+                "/home/rpi/Camera/udp_mjpeg.py",
+                str(udp_mjpeg["udp_port_in"]),
+                udp_mjpeg["udp_address_out"],
+                str(udp_mjpeg["udp_port_out"]),
                 name
             ]
 
@@ -59,7 +72,7 @@ while True:
 
         desired_processes["spi"] = [
             "/usr/bin/python3",
-            "/home/pi/Camera/spi_mux.py",
+            "/home/rpi/Camera/spi_mux.py",
             str(config["spi"]["bus"]),
             str(config["spi"]["device"]),
             str(config["spi"]["speed"]),

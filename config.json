@@ -13,13 +13,29 @@
         {
             "enabled": true,
             "name": "cam2",
-            "camera_path": "/base/soc/i2c0mux/i2c@1/ov5647@36",
+            "camera_path": "/base/soc/i2c0mux/i2c@0/ov5647@36",
             "stream_index": 1,
             "udp_port": 6001
         }
     ],
+    "udp_mjpegs": [
+        {
+            "enabled": true,
+            "name": "udp_mjpeg1",
+            "udp_port_in": 6000,
+            "udp_address_out": "10.100.219.33",
+            "udp_port_out": 7000
+        },
+        {
+            "enabled": true,
+            "name": "udp_mjpeg2",
+            "udp_port_in": 6001,
+            "udp_address_out": "10.100.219.33",
+            "udp_port_out": 7001
+        }
+    ],
     "spi": {
-        "enabled": true,
+        "enabled": false,
         "bus": 0,
         "device": 0,
         "speed": 1000000

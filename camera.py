@@ -17,7 +17,7 @@ stream_index = sys.argv[2]
 udp_port = sys.argv[3]
 label = sys.argv[4]
 
-base_path = '/home/pi/Camera'
+base_path = '/home/rpi/Camera'
 base_filename_eMMC = f'Stream_{stream_index}_eMMC'
 base_filename_SD = f'Stream_{stream_index}_SD'
 
@@ -46,7 +46,7 @@ capsfilter caps=video/x-raw,width=1920,height=1080,format=NV12,interlace-mode=pr
 tee name=t !
 queue !
 videorate !
-video/x-raw,framerate=24/1 !
+video/x-raw,framerate=20/1 !
 v4l2h264enc extra-controls="controls,repeat_sequence_header=1" !
 video/x-h264,level=(string)4 !
 tee name=v !
