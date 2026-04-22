@@ -1,0 +1,11 @@
+[Unit]
+Description=Hardware Health Check
+After=can0.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/rpi/Camera/health_check.py
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

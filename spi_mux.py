@@ -120,8 +120,8 @@ while True:
         # Append CRC as big-endian (STM32 CRC register is MSB-first)
         packet = header_and_payload + crc.to_bytes(4, 'big')
 
-        if logging_enabled:
-            print(f"Source ID: {stream_id}, Packet Length: {length}")
+        # if logging_enabled:
+        #     print(f"Source ID: {stream_id}, Packet Length: {length}")
 
         # If packet doesn't fit → pad + send
         if len(tx_buffer) + len(packet) > (MAX_SPI_CHUNK-1):
