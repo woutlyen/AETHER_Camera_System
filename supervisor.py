@@ -12,7 +12,7 @@ FALLBACK_DURATION = 30 * 60  # 30 minutes
 
 running = {}
 
-def load_config(filename="/home/rpi/Camera/config.json"):
+def load_config(filename="/home/pi/camera/config.json"):
     with open(filename, "r") as f:
         return json.load(f)
 
@@ -36,6 +36,12 @@ while True:
 
     hw = config.get("system", {}).get("hardware_status", {})
 
+    env_vars = os.environ.copy()
+    env_vars["LOGGING_ENABLED"] = str(config["features"]["logging"]).lower()
+
+    desired_processes = {}
+
+    # CAN
     can_available = hw.get("can", False)
     if not can_available:
         if not fallback_active and not fallback_period_expired:
@@ -43,24 +49,17 @@ while True:
             fallback_active = True
             fallback_start_time = time.time()
             
-    if fallback_active:
-        elapsed = time.time() - fallback_start_time
+        if fallback_active:
+            elapsed = time.time() - fallback_start_time
 
-        if elapsed > FALLBACK_DURATION:
-            print("Fallback duration expired -> stopping cameras")
-            fallback_active = False
-            fallback_period_expired = True
-
-    env_vars = os.environ.copy()
-    env_vars["LOGGING_ENABLED"] = str(config["features"]["logging"]).lower()
-
-    desired_processes = {}
-
-    # CAN
-    if can_available:
+            if elapsed > FALLBACK_DURATION:
+                print("Fallback duration expired -> stopping cameras")
+                fallback_active = False
+                fallback_period_expired = True
+    else:
         desired_processes["can_listener"] = [
             "/usr/bin/python3",
-            "/home/rpi/Camera/can_listener.py"
+            "/home/pi/camera/can_listener.py"
         ]
 
     # Cameras
@@ -68,7 +67,7 @@ while True:
         name = cam["name"]
 
         if fallback_active:
-            enabled = True  # FORCE ENABLE
+            enabled = hw.get(name, False)
         else:
             enabled = cam["enabled"] and hw.get(name, False)
 
@@ -79,7 +78,7 @@ while True:
 
         desired_processes[name] = [
             "/usr/bin/python3",
-            "/home/rpi/Camera/camera.py",
+            "/home/pi/camera/camera.py",
             cam["camera_path"],
             str(cam["stream_index"]),
             str(cam["udp_port"]),
@@ -93,7 +92,7 @@ while True:
             name = udp_mjpeg["name"]
             desired_processes[name] = [
                 "/usr/bin/python3",
-                "/home/rpi/Camera/udp_mjpeg.py",
+                "/home/pi/camera/udp_mjpeg.py",
                 str(udp_mjpeg["udp_port_in"]),
                 udp_mjpeg["udp_address_out"],
                 str(udp_mjpeg["udp_port_out"]),
@@ -111,7 +110,7 @@ while True:
 
         desired_processes["spi"] = [
             "/usr/bin/python3",
-            "/home/rpi/Camera/spi_mux.py",
+            "/home/pi/camera/spi_mux.py",
             str(config["spi"]["bus"]),
             str(config["spi"]["device"]),
             str(config["spi"]["speed"]),

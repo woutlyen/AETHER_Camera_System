@@ -18,7 +18,7 @@ udp_port = sys.argv[3]
 label = sys.argv[4]
 use_sd = sys.argv[5].lower() in ["1", "true", "yes"]
 
-filename_eMMC = f'/home/rpi/Camera/streams/Stream_{stream_index}_eMMC'
+filename_eMMC = f'/home/pi/camera/streams/Stream_{stream_index}_eMMC'
 filename_SD = f'/mnt/sd/streams/Stream_{stream_index}_SD'
 
 

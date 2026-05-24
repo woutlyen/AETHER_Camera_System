@@ -1,0 +1,136 @@
+# Flash software
+
+First flash RPi OS (64-bit) to the RPI CM4
+
+
+# Connect to camera system PCB
+
+Plug the RPI4 CM4 into the camera system PCB
+
+Connect the cameras
+
+Connect a mouse, keyboard, and WiFi dongle into the USB ports, with a USB hub
+
+Plug the USB-C cable in for power
+
+
+# After start-up
+
+Open a terminal (Black box in top left corner)
+
+Run 'sudo raspi-config' (pw = pi)
+
+
+# ENable SSH (Used to connect your computer to the rpi later in the setup)
+
+Press down on the keyboard until the '3 Interface Options' is highlighted in red
+
+Press Enter
+
+'I1 SSH' should be immediatly highlighted, press on Enter
+
+A window pops up with the question 'Would you like the SSH server to be enabled?' In the left bottom corner, the '<Yes>' options should be highlighted in red. If so press enter. Otherwise, use the left arrow to go from '<No>' to the '<Yes'> option and press then on enter.
+
+A window should appear, saying 'The SSH server is enabled'. The '<Ok>' options should be highlighted in red. Press enter
+
+
+# Enable SPI (For video streaming to the uhfcom system)
+
+Press down on the keyboard until the '3 Interface Options' is highlighted in red again
+
+Press down on the keyboard until the 'I4 SPI' is highlighted in red
+
+Press Enter
+
+A window pops up with the question 'Would you like the SPI interface to be enabled?' In the left bottom corner, the '<Yes>' options should be highlighted in red. If so press enter. Otherwise, use the left arrow to go from '<No>' to the '<Yes'> option and press then on enter.
+
+A window should appear, saying 'The SPI interface is enabled'. The '<Ok>' options should be highlighted in red. Press enter
+
+
+# Exit raspi-config
+
+Press twice on the right arrow key to go from '1 System Options' to '<Finish>'
+
+Press enter
+
+Run 'sudo reboot' and wait until started up again (pw = pi)
+
+
+# Enable The WiFi dongle
+
+Press on the top right 2 arrow icon in red
+
+Click on 'Turn On Wireless LAN'
+
+Make a hotspot on your phone/computer, and connect both the raspberry pi and your computer to the same network
+
+
+From now on, everything will be done in VSCode.
+
+In VSCode, make sure the 'ms-vscode-remote.remote-ssh' extention is installed.
+
+When installed, click on the bottom left button (Left and right arrow) to open a remote window
+
+Click on 'Connect Current Window to Host ...'
+
+Fill in pi@<ip-addres> (the adress on the hotspot)
+
+Press enter (VSCode should now connect to the rpi)
+
+A notification should pop up saying 'The authenticity of host ... can't be established', fill in 'Yes' and press on enter
+
+Fill in the password (pw = pi), press enter (Now VScode will connect to the RPI, this can take a while)
+
+VScode is connected when 'SSH: <ip-addres>' is displayed in the bottom left blue box.
+
+Click on 'Explorer' in the left sidebar
+
+CLick on 'Open Folder' in the left sidebar
+
+Click on 'Ok' in the pop up window
+
+Click on 'Trust Folder & Continue' in the new pop up window
+
+CLick on 'Yes, I trust the authors'
+
+TODO: Add release on Github to download zip with all files
+
+Download Zip with all the files from GitHub (URL: TBA)
+
+Extract the files
+
+Go back to VSCode, and click on 'New Folder ...'
+
+Give the folder the name 'camera'
+
+Copy the all the extracted files into the camera folder
+
+Click on 'Terminal' in the top bar and clik on 'New Terminal' (Terminal should pop up in the bottom of the screen)
+
+Run 'sudo dtc -@ -I dts -O dtb -o /boot/overlays/sd0.dtbo ~/camera/services/sd0-overlay.dts' (Fill in the password (pw=pi) and press enter if asked for)
+
+Run 'sudo cp ~/camera/services/config.txt /boot/firmware/config.txt'
+
+Run 'sudo reboot' and wait until started up again
+
+After the reboot, connect back to the rpi via VSCode (same procedure as explaned before)
+
+Run 'sudo apt-get upgrade -y' and enter (can take a while)
+
+Run 'sudo apt-get install gstreamer1.0 -y'
+
+To verify whether both cameras are available, run 'rpicam-hello --list-cameras' in the terminal (both cameras should pop up)
+
+TODO: verify SD card (emmc2) is online using dmesg
+
+TODO: verify mcp251x CAN controller is online using dmesg
+
+Run 'sudo cp ~/camera/services/can0.service /lib/systemd/system/can0.service' and 'sudo cp ~/camera/services/supervisor.service /lib/systemd/system/supervisor.service' and 'sudo cp ~/camera/services/healthcheck.service /lib/systemd/system/healthcheck.service'
+
+Run 'sudo systemctl daemon-reload'
+
+Run 'sudo systemctl enable can0.service' and 'sudo systemctl enable supervisor.service' and 'sudo systemctl enable healthcheck.service'
+
+Run 'sudo systemctl start can0.service' and 'sudo systemctl start supervisor.service' and 'sudo systemctl start healthcheck.service'
+
+The system is now ready to be used.

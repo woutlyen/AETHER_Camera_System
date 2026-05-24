@@ -3,7 +3,7 @@ import json
 import time
 import os
 
-CONFIG_PATH = "/home/rpi/Camera/config.json"
+CONFIG_PATH = "/home/pi/camera/config.json"
 
 def load_config():
     with open(CONFIG_PATH, "r") as f:

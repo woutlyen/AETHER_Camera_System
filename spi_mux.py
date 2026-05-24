@@ -44,7 +44,6 @@ for i in range(len(sockets)):
 
 last_report_time = time.time()
 
-
 count = 0 
 tx_buffer = bytearray()
 MAX_SPI_CHUNK = 1023
