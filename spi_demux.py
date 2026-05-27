@@ -319,7 +319,7 @@ def parse_and_forward(buffer):
                     f'{v:.6g}' if isinstance(v, float) else str(v) 
                     for v in values
                 )
-                csv_bytes = csv_data.encode('ascii')
+                csv_bytes = (csv_data+'\n').encode('ascii')
                 
                 # Send to sensor-specific UDP port
                 port = 7000 + sensor_id
