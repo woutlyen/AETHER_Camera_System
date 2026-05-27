@@ -106,11 +106,21 @@ def convert_sensor_data(sensor_id: int, data: bytes) -> list:
     values = []
     
     if sensor_id == 0x03:  # GNSS_POSITION
-        # Latitude (uint24), Longitude (uint24), Altitude (uint16)
-        lat = (data[0] << 16) | (data[1] << 8) | data[2]
-        lon = (data[3] << 16) | (data[4] << 8) | data[5]
-        alt = bytes_to_uint16(data[6], data[7])
-        values = [lat / 1e6, lon / 1e6, alt]  # Convert to degrees/meters
+        # Latitude (uint24): mapped to -90° to +90° range
+        # Formula: latitude_degrees = (value / 2^24) * 180 - 90
+        lat_raw = (data[0] << 16) | (data[1] << 8) | data[2]
+        lat_degrees = (lat_raw / (2 ** 24)) * 180 - 90
+        
+        # Longitude (uint24): mapped to -180° to +180° range
+        # Formula: longitude_degrees = (value / 2^24) * 360 - 180
+        lon_raw = (data[3] << 16) | (data[4] << 8) | data[5]
+        lon_degrees = (lon_raw / (2 ** 24)) * 360 - 180
+        
+        # Altitude (uint16): scaled by factor of 1.5 m per LSB
+        alt_raw = bytes_to_uint16(data[6], data[7])
+        alt_meters = alt_raw * 1.5
+        
+        values = [lat_degrees, lon_degrees, alt_meters]
         
     elif sensor_id == 0x04:  # EPS_BATTERY
         # Current (uint16), Voltage (uint16)
