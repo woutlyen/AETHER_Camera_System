@@ -4,6 +4,15 @@ import subprocess
 import sys
 import json
 import logging
+import can
+
+from can_constants import (
+    CS_WAKE_UP_ID,
+    CS_WAKE_UP_REPLY_ID,
+    CS_WAKE_UP_TIMEOUT,
+    CS_WAKE_UP_MAX_ATTEMPTS,
+    CS_REP_OK,
+)
 
 CONFIG_FILE = "/home/rpi/Camera/config.json"
 
@@ -107,6 +116,54 @@ def check_camera(device, camera_name):
         return False
 
 
+def send_wake_up_message(bus):
+    """
+    Send CS_WAKE_UP message to OBC.
+    
+    Attempts to send the message up to CS_WAKE_UP_MAX_ATTEMPTS times with
+    CS_WAKE_UP_TIMEOUT seconds between attempts. Waits for a response from the OBC.
+    
+    Args:
+        bus: CAN bus interface
+    
+    Returns:
+        True if successful response received, False otherwise
+    """
+    logging.info("Sending CS_WAKE_UP message to OBC...")
+    
+    for attempt in range(1, CS_WAKE_UP_MAX_ATTEMPTS + 1):
+        try:
+            # Send CS_WAKE_UP message (X = any value, using 0x00)
+            msg = can.Message(
+                arbitration_id=CS_WAKE_UP_ID,
+                data=[0x00],
+                is_extended_id=False
+            )
+            bus.send(msg)
+            logging.info(f"CS_WAKE_UP attempt {attempt}/{CS_WAKE_UP_MAX_ATTEMPTS}")
+            
+            # Wait for reply with timeout
+            start_time = time.time()
+            while time.time() - start_time < CS_WAKE_UP_TIMEOUT:
+                reply = bus.recv(timeout=0.5)
+                if reply and reply.arbitration_id == CS_WAKE_UP_REPLY_ID:
+                    if len(reply.data) >= 1 and reply.data[0] == CS_REP_OK:
+                        logging.info("Received CS_WAKE_UP_REPLY with CS_REP_OK")
+                        return True
+                    else:
+                        logging.warning(f"Received CS_WAKE_UP_REPLY but unexpected payload: {reply.data}")
+        
+        except Exception as e:
+            logging.error(f"Error sending CS_WAKE_UP: {e}")
+        
+        # Wait before next attempt (except on last attempt)
+        if attempt < CS_WAKE_UP_MAX_ATTEMPTS:
+            time.sleep(CS_WAKE_UP_TIMEOUT)
+    
+    logging.error(f"No response to CS_WAKE_UP after {CS_WAKE_UP_MAX_ATTEMPTS} attempts")
+    return False
+
+
 def reboot():
     print("Rebooting system...")
     subprocess.run(["reboot"])
@@ -125,6 +182,20 @@ def main():
     can_ok = check_can()
     cam1_ok = check_camera("ov5647", "/base/soc/i2c0mux/i2c@1/ov5647@36")
     cam2_ok = check_camera("ov5647", "/base/soc/i2c0mux/i2c@0/ov5647@36")
+
+    # If CAN is available, attempt to send CS_WAKE_UP message
+    if can_ok:
+        try:
+            bus = can.interface.Bus(
+                interface='socketcan',
+                channel='can0',
+                can_filters=[{"can_id": CS_WAKE_UP_REPLY_ID, "can_mask": 0x7FF}]
+            )
+            can_ok = send_wake_up_message(bus)
+            bus.shutdown()
+        except Exception as e:
+            logging.error(f"Failed to send CS_WAKE_UP: {e}")
+            can_ok = False
 
     update_hardware_status(cfg, sd_ok, can_ok, cam1_ok, cam2_ok)
 

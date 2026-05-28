@@ -8,8 +8,8 @@ from gi.repository import Gst
 
 Gst.init(None)
 
-if len(sys.argv) != 6:
-    print("Usage: camera.py <camera_name> <stream_index> <udp_port> <label> <use_sd>")
+if len(sys.argv) < 6:
+    print("Usage: camera.py <camera_name> <stream_index> <udp_port> <label> <use_sd> [sd_mount_point]")
     sys.exit(1)
 
 camera_name = sys.argv[1]
@@ -17,9 +17,10 @@ stream_index = sys.argv[2]
 udp_port = sys.argv[3]
 label = sys.argv[4]
 use_sd = sys.argv[5].lower() in ["1", "true", "yes"]
+sd_mount_point = sys.argv[6] if len(sys.argv) > 6 else "/mnt/sd"
 
-filename_eMMC = f'/home/pi/camera/streams/Stream_{stream_index}_eMMC'
-filename_SD = f'/mnt/sd/streams/Stream_{stream_index}_SD'
+filename_eMMC = f'/home/pi/camera/streams/camera{stream_index}'
+filename_SD = f'{sd_mount_point}/streams/camera{stream_index}' if use_sd else None
 
 
 def get_next_available_filename(base):
