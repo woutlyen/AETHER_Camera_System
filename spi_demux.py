@@ -166,27 +166,45 @@ def convert_sensor_data(sensor_id: int, data: bytes) -> list:
         values = [data[0]]
         
     elif sensor_id == 0x14:  # IFS_STAGNATION
-        # Temperature (int16), Pressure (int16)
+        # Temperature (int16) and Pressure (int16) conversions
         temp_raw = bytes_to_int16(data[0], data[1])
         press_raw = bytes_to_int16(data[2], data[3])
-        values = [temp_raw, press_raw]
+        
+        temp_celsius = (temp_raw - 8192) * 4.272e-3
+        
+        calibration_offset = -0.08
+        press_kpa = (press_raw - 3277) * 7.63e-4 - 10 + calibration_offset
+        
+        values = [temp_celsius, press_kpa]
         
     elif sensor_id == 0x15:  # IFS_BW_CURRENTS
-        # 2x Current (uint16)
-        current1 = bytes_to_uint16(data[0], data[1])
-        current2 = bytes_to_uint16(data[2], data[3])
-        values = [current1, current2]
+        # 2x Current (uint16) conversion to Amperes
+        current1_raw = bytes_to_uint16(data[0], data[1])
+        current2_raw = bytes_to_uint16(data[2], data[3])
+        
+        current1_a = current1_raw * 3.3 * 1.9608 / (2 ** 12) if current1_raw != 0 else 0
+        current2_a = current2_raw * 3.3 * 1.9608 / (2 ** 12) if current2_raw != 0 else 0
+        
+        values = [current1_a, current2_a]
         
     elif sensor_id == 0x16:  # IFS_CGG_CURRENTS
-        # 2x Current (uint16)
-        current1 = bytes_to_uint16(data[0], data[1])
-        current2 = bytes_to_uint16(data[2], data[3])
-        values = [current1, current2]
+        # 2x Current (uint16) conversion to Amperes
+        current1_raw = bytes_to_uint16(data[0], data[1])
+        current2_raw = bytes_to_uint16(data[2], data[3])
+        
+        current1_a = current1_raw * 3.3 * 1.9608 / (2 ** 12) if current1_raw != 0 else 0
+        current2_a = current2_raw * 3.3 * 1.9608 / (2 ** 12) if current2_raw != 0 else 0
+        
+        values = [current1_a, current2_a]
         
     elif sensor_id == 0x17:  # IFS_MANIFOLD
-        # Pressure (uint16)
-        pressure = bytes_to_uint16(data[0], data[1])
-        values = [pressure]
+        # Manifold Pressure (uint16) conversion to kPa
+        pressure_raw = bytes_to_uint16(data[0], data[1])
+        
+        vout = pressure_raw * 4.95 / (2 ** 12)
+        pressure_kpa = ((vout / 5) - 0.04) / 0.0012858
+        
+        values = [pressure_kpa]
         
     elif sensor_id == 0x18:  # IFS_ACCELERATION
         # 3x Acceleration (int16) + Temperature (int16)
