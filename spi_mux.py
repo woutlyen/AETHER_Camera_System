@@ -16,10 +16,12 @@ import time
 import logging
 import json
 
+logging_level = os.getenv("LOGGING_LEVEL", "INFO").upper()
+
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    level=getattr(logging, logging_level, logging.INFO),
+    format="%(asctime)s [SPI MULTIPLEXER] [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
 

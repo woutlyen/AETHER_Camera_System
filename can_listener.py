@@ -19,36 +19,33 @@ from can_constants import (
     CS_PING_ID,
 )
 
-CONFIG_PATH = "/home/pi/camera/config.json"
+logging_level = os.getenv("LOGGING_LEVEL", "INFO").upper()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    level=getattr(logging, logging_level, logging.INFO),
+    format="%(asctime)s [CAN LISTENER] [%(levelname)s] %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
-def load_config():
+def load_config(filename="config.json"):
     """Load configuration from JSON file."""
     try:
-        with open(CONFIG_PATH, "r") as f:
+        with open(filename, "r") as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         return None
 
 
-def save_config(config):
+def save_config(config, filename="config.json"):
     """Save configuration to JSON file using atomic write."""
     try:
-        tmp_path = CONFIG_PATH + ".tmp"
+        tmp_path = filename + ".tmp"
         with open(tmp_path, "w") as f:
             json.dump(config, f, indent=4)
-        os.replace(tmp_path, CONFIG_PATH)  # atomic write
+        os.replace(tmp_path, filename)  # atomic write
         logger.info(f"Config saved atomically")
     except Exception as e:
         logger.error(f"Failed to save config: {e}")

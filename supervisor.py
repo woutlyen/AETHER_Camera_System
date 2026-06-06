@@ -29,13 +29,27 @@ from can_constants import (
     STATUS_BIT_SD,
     STATUS_BIT_SPI_MUX,
     STATUS_BIT_CAN,
+    STATUS_BIT_CAN_BUS,
+    STATUS_BIT_FALLBACK,
     set_status_bit,
 )
 
 # Configure logging
+def get_logging_level(config_path="config.json"):
+    """Get logging level from JSON file."""
+    try:
+        with open(config_path, "r") as f:
+            config = json.load(f)
+            return config.get("features", {}).get("logging_level", "INFO").upper()
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        sys.exit(1)
+
+LOGGING_LEVEL = get_logging_level()
+
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    level=getattr(logging, LOGGING_LEVEL, logging.INFO),
+    format="%(asctime)s [SUPERVISOR] [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -78,7 +92,7 @@ SD_CHECK_INTERVAL = 5.0
 # INITIALIZATION & SHUTDOWN
 # ============================================================================
 
-def load_config(filename="/home/pi/camera/config.json"):
+def load_config(filename="config.json"):
     """Load configuration from JSON file."""
     try:
         with open(filename, "r") as f:
@@ -531,7 +545,7 @@ def detect_critical_failures(config):
 def collect_telemetry(config):
     """
     Collect system telemetry data for CS_STATUS message.
-    Uses runtime state, not boot-time hardware_status.
+    Uses runtime stats and boot-time hardware_status.
     
     Returns:
         Dict with telemetry keys
@@ -558,13 +572,18 @@ def collect_telemetry(config):
     telemetry["cam1_rtp"] = cam1_rtp
     telemetry["cam2_rtp"] = cam2_rtp
     
-    # Build status byte using runtime state (which processes are actually running)
+    # Build status byte using runtime state (which processes are actually running) and hardware status
     status_byte = 0
     status_byte = set_status_bit(status_byte, STATUS_BIT_CAM1, "cam1" in running and running["cam1"].poll() is None)
     status_byte = set_status_bit(status_byte, STATUS_BIT_CAM2, "cam2" in running and running["cam2"].poll() is None)
     status_byte = set_status_bit(status_byte, STATUS_BIT_SD, sd_state["currently_available"])
     status_byte = set_status_bit(status_byte, STATUS_BIT_SPI_MUX, "spi" in running and running["spi"].poll() is None)
     status_byte = set_status_bit(status_byte, STATUS_BIT_CAN, "can_listener" in running and running["can_listener"].poll() is None)
+
+    hw = config.get("system", {}).get("hardware_status", {})
+    status_byte = set_status_bit(status_byte, STATUS_BIT_CAN_BUS, hw.get("obc", False))
+    
+    status_byte = set_status_bit(status_byte, STATUS_BIT_FALLBACK, fallback_active)
     
     telemetry["status_byte"] = status_byte
     
@@ -579,6 +598,7 @@ def send_status_message(telemetry):
         telemetry: Dict with telemetry data
     """
     if can_bus is None:
+        logger.warning(f"Cannot send CS_STATUS: CAN bus unavailable")
         return
     
     try:
@@ -635,7 +655,7 @@ def start_process(name, cmd, env_vars):
     """Start a subprocess with error handling."""
     try:
         running[name] = subprocess.Popen(cmd, env=env_vars)
-        logger.info(f"Started {name}")
+        logger.info(f"Started {name} (PID: {running[name].pid})")
     except Exception as e:
         logger.error(f"Failed to start {name}: {e}")
 
@@ -650,10 +670,12 @@ def stop_process(name):
         running[name].wait(timeout=10)
     except subprocess.TimeoutExpired:
         running[name].kill()
+        logger.warning(f"Killed {name} (timeout)")
     except Exception as e:
         logger.error(f"Error stopping {name}: {e}")
     finally:
-        del running[name]
+        if name in running:
+            del running[name]
 
 
 def manage_processes(config):
@@ -665,20 +687,21 @@ def manage_processes(config):
         config: Full configuration dict
     """
     env_vars = os.environ.copy()
-    env_vars["LOGGING_ENABLED"] = str(config["features"]["logging"]).lower()
+    env_vars["LOGGING_LEVEL"] = LOGGING_LEVEL
     
     desired_processes = {}
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # ====================================================================
-    # CAN LISTENER
+    # CAN LISTENER (receives commands from the OBC)
     # ====================================================================
     
     hw = config.get("system", {}).get("hardware_status", {})
-    can_available = hw.get("can", False)
-    if can_available:
+    obc_available = hw.get("obc", False)
+    if obc_available:
         desired_processes["can_listener"] = [
             "/usr/bin/python3",
-            "/home/pi/camera/can_listener.py"
+            os.path.join(script_dir, "can_listener.py")
         ]
     
     # ====================================================================
@@ -702,7 +725,7 @@ def manage_processes(config):
         
         desired_processes[name] = [
             "/usr/bin/python3",
-            "/home/pi/camera/camera.py",
+            os.path.join(script_dir, "camera.py"),
             cam["camera_path"],
             str(cam["stream_index"]),
             str(cam["udp_port"]),
@@ -710,22 +733,6 @@ def manage_processes(config):
             str(use_sd),
             sd_mount
         ]
-    
-    # ====================================================================
-    # UDP MJPEG STREAMS
-    # ====================================================================
-    
-    for udp_mjpeg in config["udp_mjpegs"]:
-        if udp_mjpeg["enabled"]:
-            name = udp_mjpeg["name"]
-            desired_processes[name] = [
-                "/usr/bin/python3",
-                "/home/pi/camera/udp_mjpeg.py",
-                str(udp_mjpeg["udp_port_in"]),
-                udp_mjpeg["udp_address_out"],
-                str(udp_mjpeg["udp_port_out"]),
-                name
-            ]
     
     # ====================================================================
     # SPI MULTIPLEXER
@@ -741,7 +748,7 @@ def manage_processes(config):
         
         desired_processes["spi"] = [
             "/usr/bin/python3",
-            "/home/pi/camera/spi_mux.py",
+            os.path.join(script_dir, "spi_mux.py"),
             str(config["spi"]["bus"]),
             str(config["spi"]["device"]),
             str(config["spi"]["speed"]),
@@ -773,8 +780,16 @@ def main():
     """Main supervisor loop."""
     global fallback_active, fallback_start_time, fallback_period_expired, sd_state
     
-    # Initialize CAN bus
-    initialize_can_bus()
+    config = load_config()
+    if config is None:
+        logger.error("Failed to load config on startup")
+        sys.exit(1)
+
+    hw = config.get("system", {}).get("hardware_status", {})
+
+    # Initialize CAN bus if CAN controller is present
+    if (hw.get("can", False) == True):
+        initialize_can_bus()
     
     # Check SD card at startup
     sd_state["currently_available"] = check_sd_card_available()
@@ -799,17 +814,17 @@ def main():
             # ================================================================
             
             hw = config.get("system", {}).get("hardware_status", {})
-            can_available = hw.get("can", False)
-            if not can_available:
+            obc_available = hw.get("obc", False)
+            if not obc_available:
                 if not fallback_active and not fallback_period_expired:
-                    logger.info("CAN not available → entering fallback mode")
+                    logger.info("OBC not available → entering fallback mode")
                     fallback_active = True
                     fallback_start_time = time.time()
                 
                 if fallback_active:
                     elapsed = time.time() - fallback_start_time
                     if elapsed > FALLBACK_DURATION:
-                        logger.info("Fallback duration expired → stopping cameras")
+                        logger.info("Fallback duration expired → stopping cameras & spi multiplexer")
                         fallback_active = False
                         fallback_period_expired = True
             

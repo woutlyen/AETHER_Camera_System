@@ -2,14 +2,27 @@ import sys
 import os
 import gi
 import signal
+import logging
 
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst
 
 Gst.init(None)
 
+logging_level = os.getenv("LOGGING_LEVEL", "INFO").upper()
+
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, logging_level, logging.INFO),
+    format="%(asctime)s [CAMERA] [%(levelname)s] %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 if len(sys.argv) < 6:
-    print("Usage: camera.py <camera_name> <stream_index> <udp_port> <label> <use_sd> [sd_mount_point]")
+    logger.error(
+        "Usage: camera.py <camera_name> <stream_index> <udp_port> "
+        "<label> <use_sd> [sd_mount_point]"
+    )
     sys.exit(1)
 
 camera_name = sys.argv[1]
@@ -19,12 +32,13 @@ label = sys.argv[4]
 use_sd = sys.argv[5].lower() in ["1", "true", "yes"]
 sd_mount_point = sys.argv[6] if len(sys.argv) > 6 else "/mnt/sd"
 
-filename_eMMC = f'/home/pi/camera/streams/camera{stream_index}'
-filename_SD = f'{sd_mount_point}/streams/camera{stream_index}' if use_sd else None
+filename_eMMC = f"/home/pi/camera/streams/camera{stream_index}"
+filename_SD = f"{sd_mount_point}/streams/camera{stream_index}" if use_sd else None
 
 
 def get_next_available_filename(base):
     index = 0
+
     while True:
         candidate = f"{base}_{index}.h264" if index > 0 else f"{base}.h264"
 
@@ -82,8 +96,11 @@ rtph264pay pt=96 mtu=242 config-interval=1 !
 udpsink host=127.0.0.1 port={udp_port} sync=false async=false
 """
 
-
-pipeline = Gst.parse_launch(pipeline_str)
+try:
+    pipeline = Gst.parse_launch(pipeline_str)
+except Exception as e:
+    logger.error(f"Failed to create GStreamer pipeline: {e}")
+    sys.exit(1)
 
 
 # -------------------------
@@ -91,34 +108,73 @@ pipeline = Gst.parse_launch(pipeline_str)
 # -------------------------
 
 def shutdown_pipeline(sig, frame):
-    print(f"Shutting down {label} pipeline gracefully...")
+    logger.info(f"Shutting down {label} pipeline...")
     pipeline.set_state(Gst.State.NULL)
     sys.exit(0)
 
 
 signal.signal(signal.SIGINT, shutdown_pipeline)
+signal.signal(signal.SIGTERM, shutdown_pipeline)
 
 
 # -------------------------
 # Start pipeline
 # -------------------------
 
-print(f"[{label}] Starting pipeline")
-print(f"[{label}] eMMC file: {eMMC_filename}")
+logger.info(f"Starting camera pipeline: {label}")
+logger.info(f"Camera name: {camera_name}")
+logger.info(f"UDP output port: {udp_port}")
+logger.info(f"eMMC recording: {eMMC_filename}")
 
 if use_sd:
-    print(f"[{label}] SD file: {SD_filename}")
+    logger.info(f"SD recording: {SD_filename}")
 else:
-    print(f"[{label}] SD disabled")
+    logger.info("SD recording disabled")
 
+ret = pipeline.set_state(Gst.State.PLAYING)
 
-pipeline.set_state(Gst.State.PLAYING)
+if ret == Gst.StateChangeReturn.FAILURE:
+    logger.error("Failed to start GStreamer pipeline")
+    sys.exit(1)
 
-bus = pipeline.get_bus()
-msg = bus.timed_pop_filtered(
-    Gst.CLOCK_TIME_NONE,
-    Gst.MessageType.ERROR | Gst.MessageType.EOS
-)
+logger.info("Pipeline started successfully")
 
-pipeline.set_state(Gst.State.NULL)
-sys.exit(1)
+try:
+    bus = pipeline.get_bus()
+
+    while True:
+        msg = bus.timed_pop_filtered(
+            Gst.CLOCK_TIME_NONE,
+            Gst.MessageType.ERROR
+            | Gst.MessageType.EOS
+            | Gst.MessageType.WARNING
+        )
+
+        if not msg:
+            continue
+
+        if msg.type == Gst.MessageType.ERROR:
+            err, debug = msg.parse_error()
+            logger.error(f"GStreamer error: {err}")
+            if debug:
+                logger.debug(f"Debug info: {debug}")
+            break
+
+        elif msg.type == Gst.MessageType.WARNING:
+            err, debug = msg.parse_warning()
+            logger.warning(f"GStreamer warning: {err}")
+            if debug:
+                logger.debug(f"Debug info: {debug}")
+
+        elif msg.type == Gst.MessageType.EOS:
+            logger.info("Received EOS event")
+            break
+
+except KeyboardInterrupt:
+    logger.info("Interrupted by user")
+
+finally:
+    logger.info("Stopping pipeline...")
+    pipeline.set_state(Gst.State.NULL)
+    logger.info("Camera pipeline shut down")
+    sys.exit(0)

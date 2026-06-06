@@ -1,6 +1,6 @@
 {
     "features": {
-        "logging": true
+        "logging_level": "INFO"
     },
     "system": {
         "boot_retry_count": 0,
@@ -9,6 +9,7 @@
         "hardware_status": {
             "sd_card": false,
             "can": false,
+            "obc": false,
             "cam1": false,
             "cam2": false
         }
@@ -27,22 +28,6 @@
             "camera_path": "/base/soc/i2c0mux/i2c@0/ov5647@36",
             "stream_index": 1,
             "udp_port": 6001
-        }
-    ],
-    "udp_mjpegs": [
-        {
-            "enabled": false,
-            "name": "udp_mjpeg1",
-            "udp_port_in": 6000,
-            "udp_address_out": "10.100.219.33",
-            "udp_port_out": 7000
-        },
-        {
-            "enabled": false,
-            "name": "udp_mjpeg2",
-            "udp_port_in": 6001,
-            "udp_address_out": "10.100.219.33",
-            "udp_port_out": 7001
         }
     ],
     "spi": {

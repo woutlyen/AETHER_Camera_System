@@ -110,14 +110,16 @@ COMMAND_MAPPING = {
 
 # ============================================================================
 # STATUS BYTE BIT MAPPING (CS_STATUS message, byte 7)
-# Bits 7-5 are reserved (X), bits 4-0 contain status
+# Bit 7 is reserved (X), bits 6-0 contain status
 # ============================================================================
 
 STATUS_BIT_CAM1 = 0       # bit 0: Camera 1 status
 STATUS_BIT_CAM2 = 1       # bit 1: Camera 2 status
 STATUS_BIT_SD = 2         # bit 2: SD card status
 STATUS_BIT_SPI_MUX = 3    # bit 3: SPI multiplexer status
-STATUS_BIT_CAN = 4        # bit 4: CAN status
+STATUS_BIT_CAN = 4        # bit 4: CAN controller status
+STATUS_BIT_CAN_BUS = 5    # bit 5: CAN Bus CS <-> OBC status
+STATUS_BIT_FALLBACK = 6   # bit 6: CS in fallback status
 
 
 def set_status_bit(status_byte, bit_pos, enabled):
