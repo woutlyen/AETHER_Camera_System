@@ -161,8 +161,7 @@ def send_rtp_stats_to_supervisor():
             json.dump(stats, f)
         os.replace(temp_file, RTP_STATS_FILE)
         
-        if logging_enabled:
-            logger.debug(f"Sent RTP rates to supervisor: {stats}")
+        logger.debug(f"Sent RTP rates to supervisor: {stats}")
     except Exception as e:
         logger.error(f"Failed to send RTP stats: {e}")
 
@@ -193,8 +192,7 @@ def process_rtp_packet(stream_id, data):
             diff = (seq - expected) & 0xFFFF
             if diff > 0:
                 dropped_packets[stream_id] += diff
-                if logging_enabled:
-                    logger.debug(f"Stream {stream_id}: Dropped {diff} RTP packet(s)")
+                logger.debug(f"Stream {stream_id}: Dropped {diff} RTP packet(s)")
     
     last_seq[stream_id] = seq
     
@@ -223,8 +221,7 @@ def process_rtp_packet(stream_id, data):
         try:
             spi.xfer2(tx_buffer)
             frame_count += 1
-            if logging_enabled:
-                logger.debug(f"Sent SPI frame {frame_count} ({len(tx_buffer)} bytes)")
+            logger.debug(f"Sent SPI frame {frame_count} ({len(tx_buffer)} bytes)")
         except Exception as e:
             logger.error(f"SPI transmission error: {e}")
         
@@ -261,15 +258,14 @@ def main():
                 # Send statistics to supervisor
                 send_rtp_stats_to_supervisor()
                 
-                # Log statistics if enabled
-                if logging_enabled:
-                    logger.info("---- RTP UDP Stats ----")
-                    for stream_id in sorted(received_packets.keys()):
-                        rx = received_packets[stream_id]
-                        dropped = dropped_packets[stream_id]
-                        logger.info(f"Stream {stream_id}: rx={rx}, dropped={dropped}")
-                    logger.info(f"Total SPI frames: {frame_count}")
-                    logger.info("-----------------------")
+                # Log statistics
+                logger.info("---- RTP UDP Stats ----")
+                for stream_id in sorted(received_packets.keys()):
+                    rx = received_packets[stream_id]
+                    dropped = dropped_packets[stream_id]
+                    logger.info(f"Stream {stream_id}: rx={rx}, dropped={dropped}")
+                logger.info(f"Total SPI frames: {frame_count}")
+                logger.info("-----------------------")
                 
                 # Reset counters for next period
                 for stream_id in received_packets.keys():

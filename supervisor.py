@@ -34,11 +34,14 @@ from can_constants import (
     set_status_bit,
 )
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
+
 # Configure logging
-def get_logging_level(config_path="config.json"):
+def get_logging_level():
     """Get logging level from JSON file."""
     try:
-        with open(config_path, "r") as f:
+        with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
             return config.get("features", {}).get("logging_level", "INFO").upper()
     except Exception as e:
@@ -92,10 +95,10 @@ SD_CHECK_INTERVAL = 5.0
 # INITIALIZATION & SHUTDOWN
 # ============================================================================
 
-def load_config(filename="config.json"):
+def load_config():
     """Load configuration from JSON file."""
     try:
-        with open(filename, "r") as f:
+        with open(CONFIG_FILE, "r") as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Failed to load config: {e}")

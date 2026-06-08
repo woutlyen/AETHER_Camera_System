@@ -28,24 +28,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
 
-def load_config(filename="config.json"):
+def load_config():
     """Load configuration from JSON file."""
     try:
-        with open(filename, "r") as f:
+        with open(CONFIG_FILE, "r") as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         return None
 
 
-def save_config(config, filename="config.json"):
+def save_config(config):
     """Save configuration to JSON file using atomic write."""
     try:
-        tmp_path = filename + ".tmp"
+        tmp_path = CONFIG_FILE + ".tmp"
         with open(tmp_path, "w") as f:
             json.dump(config, f, indent=4)
-        os.replace(tmp_path, filename)  # atomic write
+        os.replace(tmp_path, CONFIG_FILE)  # atomic write
         logger.info(f"Config saved atomically")
     except Exception as e:
         logger.error(f"Failed to save config: {e}")

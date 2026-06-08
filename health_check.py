@@ -14,7 +14,8 @@ from can_constants import (
     CS_REP_OK,
 )
 
-CONFIG_FILE = "/home/rpi/Camera/config.json"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
 
 def load_config():
     # Load the JSON config file
@@ -40,26 +41,24 @@ def set_retry_count(cfg, count):
     cfg["system"]["boot_retry_count"] = count
 
 
-def setup_logging(enabled):
-    # Configure logging to file and console if enabled, otherwise suppress all logs
-    if enabled:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(message)s",
-            handlers=[
-                logging.FileHandler("/home/rpi/Camera/boot.log"),
-                logging.StreamHandler()
-            ]
-        )
-    else:
-        logging.basicConfig(level=logging.CRITICAL)
+def setup_logging():
+    # Configure logging to file and console
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [HEALTHCHECK] [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(os.path.join(SCRIPT_DIR, "boot.log")),
+            logging.StreamHandler()
+        ]
+    )
 
 
-def update_hardware_status(cfg, sd, can, cam1, cam2):
+def update_hardware_status(cfg, sd, can, obc, cam1, cam2):
     # Update the hardware status in the config based on the checks
     cfg["system"]["hardware_status"] = {
         "sd_card": sd,
         "can": can,
+        "obc": obc,
         "cam1": cam1,
         "cam2": cam2
     }
@@ -171,7 +170,7 @@ def reboot():
 
 def main():
     cfg = load_config()
-    setup_logging(cfg["features"].get("logging", False))
+    setup_logging()
 
     retry_count = get_retry_count(cfg)
     max_retries = cfg["system"]["max_retries"]
@@ -182,6 +181,7 @@ def main():
     can_ok = check_can()
     cam1_ok = check_camera("ov5647", "/base/soc/i2c0mux/i2c@1/ov5647@36")
     cam2_ok = check_camera("ov5647", "/base/soc/i2c0mux/i2c@0/ov5647@36")
+    obc_ok = False;
 
     # If CAN is available, attempt to send CS_WAKE_UP message
     if can_ok:
@@ -191,13 +191,13 @@ def main():
                 channel='can0',
                 can_filters=[{"can_id": CS_WAKE_UP_REPLY_ID, "can_mask": 0x7FF}]
             )
-            can_ok = send_wake_up_message(bus)
+            obc_ok = send_wake_up_message(bus)
             bus.shutdown()
         except Exception as e:
             logging.error(f"Failed to send CS_WAKE_UP: {e}")
-            can_ok = False
+            obc_ok = False
 
-    update_hardware_status(cfg, sd_ok, can_ok, cam1_ok, cam2_ok)
+    update_hardware_status(cfg, sd_ok, can_ok, obc_ok, cam1_ok, cam2_ok)
 
     if sd_ok and can_ok and cam1_ok and cam2_ok:
         logging.info("All hardware OK")
@@ -206,7 +206,7 @@ def main():
         sys.exit(0) # All good, continue booting normally
 
     logging.warning(
-        f"Hardware failed: SD={sd_ok}, CAN={can_ok}, CAM1={cam1_ok}, CAM2={cam2_ok}"
+        f"Hardware failed: SD={sd_ok}, CAN={can_ok}, OBC={obc_ok}, CAM1={cam1_ok}, CAM2={cam2_ok}"
     )
 
     retry_count += 1
@@ -214,7 +214,7 @@ def main():
 
     if retry_count >= max_retries:
         logging.error("Max retries reached. Running in degraded mode.")
-
+        # set_retry_count(cfg, 0)
         save_config(cfg)
 
         sys.exit(0)  # Don't fail boot anymore, continue with degraded functionality
