@@ -622,7 +622,7 @@ def send_status_message(telemetry):
             is_extended_id=False
         )
         can_bus.send(msg)
-        logger.debug(f"Sent CS_STATUS: {[hex(b) for b in data]}")
+        logger.info(f"Sent CS_STATUS: {[hex(b) for b in data]}")
     except Exception as e:
         logger.error(f"Failed to send CS_STATUS: {e}")
 
