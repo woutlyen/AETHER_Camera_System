@@ -77,11 +77,11 @@ v. ! queue ! filesink location={SD_filename}
 
 pipeline_str = f"""
 libcamerasrc camera-name={camera_name} !
-capsfilter caps=video/x-raw,width=1920,height=1080,format=NV12,interlace-mode=progressive,framerate=24/1 !
+capsfilter caps=video/x-raw,width=1280,height=720,format=NV12,interlace-mode=progressive,framerate=30/1 !
 tee name=t !
 queue !
 videorate !
-video/x-raw,framerate=20/1 !
+video/x-raw,framerate=30/1 !
 {file_branch}
 t. ! queue !
 videoscale !
