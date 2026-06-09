@@ -45,7 +45,7 @@ def setup_logging():
     # Configure logging to file and console
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s [HEALTHCHECK] [%(levelname)s] %(message)s",
+        format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
             logging.FileHandler(os.path.join(SCRIPT_DIR, "boot.log")),
             logging.StreamHandler()

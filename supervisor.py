@@ -581,9 +581,10 @@ def collect_telemetry(config):
     status_byte = set_status_bit(status_byte, STATUS_BIT_CAM2, "cam2" in running and running["cam2"].poll() is None)
     status_byte = set_status_bit(status_byte, STATUS_BIT_SD, sd_state["currently_available"])
     status_byte = set_status_bit(status_byte, STATUS_BIT_SPI_MUX, "spi" in running and running["spi"].poll() is None)
-    status_byte = set_status_bit(status_byte, STATUS_BIT_CAN, "can_listener" in running and running["can_listener"].poll() is None)
 
+    # status_byte = set_status_bit(status_byte, STATUS_BIT_CAN, "can_listener" in running and running["can_listener"].poll() is None)
     hw = config.get("system", {}).get("hardware_status", {})
+    status_byte = set_status_bit(status_byte, STATUS_BIT_CAN, hw.get("can", False))
     status_byte = set_status_bit(status_byte, STATUS_BIT_CAN_BUS, hw.get("obc", False))
     
     status_byte = set_status_bit(status_byte, STATUS_BIT_FALLBACK, fallback_active)

@@ -100,6 +100,13 @@ def shutdown_spi_mux(sig, frame):
         
         # Report final stats
         logger.info(f"Total SPI frames transmitted: {frame_count}")
+
+        # Clear RTP Packet rate
+        for stream_id in sorted(received_packets.keys()):
+            received_packets[stream_id] = 0
+
+        # Send statistics to supervisor
+        send_rtp_stats_to_supervisor()
         
         # Close resources
         if spi:
