@@ -4,7 +4,7 @@ After=can0.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 /home/rpi/Camera/health_check.py
+ExecStart=/usr/bin/python3 /home/pi/camera/health_check.py
 RemainAfterExit=yes
 
 [Install]

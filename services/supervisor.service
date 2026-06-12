@@ -1,13 +1,13 @@
 [Unit]
-Description=Start Camera Supervisor
+Description=Start Supervisor
 After=healthcheck.service
 Requires=healthcheck.service
 
 [Service]
-ExecStart=/usr/bin/python3 /home/rpi/Camera/supervisor.py
+ExecStart=/usr/bin/python3 /home/pi/camera/supervisor.py
 Restart=always
 RestartSec=10
-User=rpi
+User=pi
 
 [Install]
 WantedBy=multi-user.target
