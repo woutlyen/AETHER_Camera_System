@@ -6,6 +6,7 @@ import json
 import logging
 import can
 
+from sd_card import check_sd_card_available
 from can_constants import (
     CS_WAKE_UP_ID,
     CS_WAKE_UP_REPLY_ID,
@@ -63,19 +64,9 @@ def update_hardware_status(cfg, sd, can, obc, cam1, cam2):
         "cam2": cam2
     }
 
-def check_mnt_sd_card():
-    # Check if SD card is mounted at /mnt/sd
-    try:
-        result = subprocess.run(["lsblk", "-o", "NAME,MOUNTPOINT"], capture_output=True, text=True)
-        return "mmcblk2p1" in result.stdout and "/mnt/sd" in result.stdout
-    except:
-        return False
-    
-
-def check_write_sd_card():
-    # Try to write a small file to the SD card to ensure it's writable
-    path = "/home/rpi/Camera"
-    test_file = os.path.join(path, "test.tmp")
+def check_write_sd_card(mount_point):
+    # Try to write a small file to the SD card to ensure it's actually writable
+    test_file = os.path.join(mount_point, "test.tmp")
 
     try:
         with open(test_file, "w") as f:
@@ -177,7 +168,8 @@ def main():
 
     logging.info(f"Boot attempt: {retry_count+1}/{max_retries}")
 
-    sd_ok = check_mnt_sd_card() and check_write_sd_card()
+    sd_available, sd_mount_point = check_sd_card_available()
+    sd_ok = sd_available and check_write_sd_card(sd_mount_point)
     can_ok = check_can()
     cam1_ok = check_camera("ov5647", "/base/soc/i2c0mux/i2c@1/ov5647@36")
     cam2_ok = check_camera("ov5647", "/base/soc/i2c0mux/i2c@0/ov5647@36")
@@ -199,7 +191,7 @@ def main():
 
     update_hardware_status(cfg, sd_ok, can_ok, obc_ok, cam1_ok, cam2_ok)
 
-    if sd_ok and can_ok and cam1_ok and cam2_ok:
+    if can_ok and cam1_ok and cam2_ok:
         logging.info("All hardware OK")
         set_retry_count(cfg, 0)
         save_config(cfg)
@@ -209,16 +201,16 @@ def main():
         f"Hardware failed: SD={sd_ok}, CAN={can_ok}, OBC={obc_ok}, CAM1={cam1_ok}, CAM2={cam2_ok}"
     )
 
-    retry_count += 1
-    set_retry_count(cfg, retry_count)
-
     if retry_count >= max_retries:
         logging.error("Max retries reached. Running in degraded mode.")
-        # set_retry_count(cfg, 0)
+        set_retry_count(cfg, 0)
         save_config(cfg)
 
         sys.exit(0)  # Don't fail boot anymore, continue with degraded functionality
 
+    retry_count += 1
+    set_retry_count(cfg, retry_count)
+    
     save_config(cfg)
 
     time.sleep(2)
