@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 fallback_active = False
 fallback_start_time = None
 fallback_period_expired = False
-FALLBACK_DURATION = 10 * 60  # 30 minutes
+FALLBACK_DURATION = 30 * 60  # 30 minutes
 
 running = {}  # {process_name: subprocess.Popen}
 can_bus = None
@@ -384,7 +384,7 @@ def check_camera_data_flow(config):
 
         # If data gets written to the EMMC, this data will also be written to the SD card if SD writing is enabled, so we can just check the EMMC size for stalls. 
         # If the EMMC size is not growing, we can assume that the SD card size is also not growing, and we don't need to check the SD card
-        
+
         # sd_size = -1
         # if (
         #     camera_sd_status.get(name, False)
