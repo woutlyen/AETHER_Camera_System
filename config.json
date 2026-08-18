@@ -5,7 +5,6 @@
     "system": {
         "boot_retry_count": 0,
         "max_retries": 1,
-
         "hardware_status": {
             "sd_card": false,
             "can": false,
